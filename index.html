@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>飛鳥時代カード</title>
+<style>
+  :root {
+    --bg: #fdf8f0;
+    --ink: #2b2a33;
+    --muted: #7a7684;
+    --card: #ffffff;
+    --front: #3b5bdb;
+    --back: #f08c00;
+    --ok: #2f9e44;
+    --ng: #e03131;
+    --line: #e8e2d6;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  button { -webkit-appearance: none; appearance: none; outline: none; font: inherit; cursor: pointer; border: none; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Hiragino Maru Gothic ProN", "Hiragino Sans", "Yu Gothic", sans-serif;
+    padding: max(20px, env(safe-area-inset-top)) 16px max(40px, env(safe-area-inset-bottom));
+    min-height: 100vh;
+  }
+  .wrap { max-width: 640px; margin: 0 auto; }
+  h1 { font-size: 1.5rem; margin: 0 0 4px; text-align: center; }
+  .sub { text-align: center; color: var(--muted); margin: 0 0 24px; font-size: .9rem; }
+  .screen { display: none; }
+  .screen.active { display: block; }
+
+  /* 単元選択 */
+  .deck-btn {
+    display: flex; justify-content: space-between; align-items: center;
+    width: 100%; background: var(--card); border: 2px solid var(--line);
+    border-radius: 16px; padding: 16px 18px; margin-bottom: 12px; text-align: left;
+    color: var(--ink); transition: transform .1s;
+  }
+  .deck-btn:active { transform: scale(.98); }
+  .deck-btn .name { font-weight: bold; font-size: 1.1rem; }
+  .deck-btn .info { color: var(--muted); font-size: .85rem; margin-top: 2px; }
+  .deck-btn .badge { font-size: .85rem; font-weight: bold; color: var(--ok); white-space: nowrap; margin-left: 8px; }
+  .deck-btn.all { border-color: var(--front); }
+  .opts { display: flex; gap: 10px; justify-content: center; margin: 20px 0 8px; flex-wrap: wrap; }
+  .toggle {
+    background: var(--card); border: 2px solid var(--line); border-radius: 999px;
+    padding: 8px 16px; font-size: .9rem; color: var(--ink);
+  }
+  .toggle.on { background: var(--front); border-color: var(--front); color: #fff; }
+  .reset { display: block; margin: 24px auto 0; background: none; color: var(--muted); font-size: .85rem; text-decoration: underline; }
+
+  /* カード */
+  .top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .back-link { background: none; color: var(--muted); font-size: .95rem; padding: 6px 0; }
+  .count { font-weight: bold; color: var(--muted); }
+  .bar { height: 8px; background: var(--line); border-radius: 99px; overflow: hidden; margin-bottom: 20px; }
+  .bar > div { height: 100%; background: var(--front); width: 0; transition: width .3s; }
+
+  .scene { perspective: 1200px; }
+  .card {
+    position: relative; width: 100%; min-height: 320px;
+    transform-style: preserve-3d; transition: transform .5s; cursor: pointer;
+  }
+  .card.flipped { transform: rotateY(180deg); }
+  .face {
+    position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden;
+    border-radius: 22px; padding: 28px 24px; display: flex; flex-direction: column;
+    justify-content: center; align-items: center; text-align: center;
+    box-shadow: 0 6px 20px rgba(0,0,0,.08);
+  }
+  .face .tag {
+    position: absolute; top: 14px; left: 16px; font-size: .75rem; font-weight: bold;
+    padding: 4px 10px; border-radius: 99px;
+  }
+  .front { background: var(--card); border: 3px solid var(--front); }
+  .front .tag { background: #e7ecff; color: var(--front); }
+  .front .q { font-size: 1.25rem; line-height: 1.7; }
+  .front .hint { color: var(--muted); font-size: .85rem; margin-top: 20px; }
+  .backface { background: #fff9ef; border: 3px solid var(--back); transform: rotateY(180deg); }
+  .backface .tag { background: #fff0d6; color: #c46a00; }
+  .backface .a { font-size: 2rem; font-weight: bold; color: #c46a00; line-height: 1.4; }
+  .backface .ruby { font-size: .95rem; color: var(--muted); margin-top: 4px; }
+  .backface .note { font-size: .95rem; line-height: 1.7; margin-top: 18px; color: var(--ink); text-align: left; }
+
+  .judge { display: flex; gap: 12px; margin-top: 20px; visibility: hidden; }
+  .judge.show { visibility: visible; }
+  .judge button { flex: 1; padding: 18px 0; border-radius: 16px; font-size: 1.1rem; font-weight: bold; color: #fff; }
+  .judge .ng { background: var(--ng); }
+  .judge .ok { background: var(--ok); }
+  .flip-btn { display: block; width: 100%; margin-top: 20px; padding: 18px 0; border-radius: 16px; background: var(--front); color: #fff; font-size: 1.1rem; font-weight: bold; }
+  .flip-btn.hide { display: none; }
+
+  /* 結果 */
+  .result-box { background: var(--card); border-radius: 22px; padding: 28px 20px; text-align: center; box-shadow: 0 6px 20px rgba(0,0,0,.06); }
+  .score { font-size: 3rem; font-weight: bold; color: var(--front); margin: 8px 0; }
+  .msg { font-size: 1.1rem; margin-bottom: 4px; }
+  .review { margin-top: 24px; }
+  .review h2 { font-size: 1.1rem; margin: 0 0 10px; }
+  .review-item { background: var(--card); border-left: 5px solid var(--ng); border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; }
+  .review-item .rq { font-size: .95rem; line-height: 1.6; }
+  .review-item .ra { font-weight: bold; color: #c46a00; margin-top: 4px; }
+  .btn-row { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; }
+  .btn { padding: 16px 0; border-radius: 16px; font-size: 1.05rem; font-weight: bold; }
+  .btn.primary { background: var(--ng); color: #fff; }
+  .btn.secondary { background: var(--front); color: #fff; }
+  .btn.plain { background: var(--card); color: var(--ink); border: 2px solid var(--line); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- 単元選択 -->
+  <section id="home" class="screen active">
+    <h1>🏯 飛鳥時代 フラッシュカード</h1>
+    <p class="sub">カードをタップして答えを確認しよう</p>
+    <div id="decks"></div>
+    <div class="opts">
+      <button class="toggle on" id="shuffleToggle">🔀 シャッフル</button>
+      <button class="toggle" id="reverseToggle">🔁 答え→問題</button>
+    </div>
+    <button class="reset" id="resetBtn">覚えた記録をリセット</button>
+  </section>
+
+  <!-- カード画面 -->
+  <section id="study" class="screen">
+    <div class="top">
+      <button class="back-link" id="quitBtn">← もどる</button>
+      <span class="count" id="count"></span>
+    </div>
+    <div class="bar"><div id="barFill"></div></div>
+    <div class="scene">
+      <div class="card" id="card">
+        <div class="face front">
+          <span class="tag" id="frontTag"></span>
+          <div class="q" id="frontText"></div>
+          <div class="hint">タップでうら返す</div>
+        </div>
+        <div class="face backface">
+          <span class="tag">こたえ</span>
+          <div class="a" id="backText"></div>
+          <div class="ruby" id="backRuby"></div>
+          <div class="note" id="backNote"></div>
+        </div>
+      </div>
+    </div>
+    <button class="flip-btn" id="flipBtn">答えを見る</button>
+    <div class="judge" id="judge">
+      <button class="ng" id="ngBtn">😣 まだ</button>
+      <button class="ok" id="okBtn">😊 覚えた</button>
+    </div>
+  </section>
+
+  <!-- 結果 -->
+  <section id="result" class="screen">
+    <div class="result-box">
+      <div class="msg" id="resultMsg"></div>
+      <div class="score" id="resultScore"></div>
+      <div id="resultSub" style="color:var(--muted)"></div>
+    </div>
+    <div class="review" id="review"></div>
+    <div class="btn-row">
+      <button class="btn primary" id="retryNgBtn">😣「まだ」のカードだけもう一度</button>
+      <button class="btn secondary" id="retryAllBtn">🔀 全部もう一度</button>
+      <button class="btn plain" id="homeBtn">単元選択にもどる</button>
+    </div>
+  </section>
+
+</div>
+
+<script>
+// ===== カードデータ（問題集 p.18〜19「飛鳥時代」より） =====
+const DECKS = [
+  {
+    id: "nenpyo",
+    name: "📜 年表問題",
+    cards: [
+      { q: "593年、聖徳太子はだれの政治を助けた？", a: "推古天皇", r: "すいこてんのう", n: "聖徳太子のおばにあたる、日本で最初の女性の天皇。" },
+      { q: "603年、役人の位を12に分けた制度は？", a: "冠位十二階", r: "かんいじゅうにかい", n: "家がらではなく、能力や功績で役人を取り立てるためのしくみ。" },
+      { q: "604年に定められた、役人の心得は？", a: "十七条の憲法", r: "じゅうしちじょうのけんぽう", n: "「和を大切にしなさい」「三宝（仏教など）をあつく信仰しなさい」「天皇の命令（詔）には必ず従いなさい」など。" },
+      { q: "607年、遣隋使として中国へ送られたのはだれ？", a: "小野妹子", r: "おののいもこ", n: "「妹子」だけど男性。聖徳太子の命令で隋へわたった。" },
+      { q: "630年、中国に第1回が送られた使いは？", a: "遣唐使", r: "けんとうし", n: "隋がほろびたあとの王朝「唐」に送った使い。遣隋使（607年）とまちがえないように。" },
+      { q: "645年、中大兄皇子らによって始まった改新は？", a: "大化の改新", r: "たいかのかいしん", n: "中大兄皇子と中臣鎌足が蘇我氏をたおして始めた政治の改革。" },
+      { q: "663年、朝鮮半島で日本がやぶれた戦いは？", a: "白村江の戦い", r: "はくすきのえのたたかい", n: "日本は百済を助けるために出兵したが、唐と新羅の連合軍にやぶれた。" },
+      { q: "668年、中大兄皇子が即位して何天皇になった？", a: "天智天皇", r: "てんじてんのう", n: "中大兄皇子＝天智天皇。セットで覚えよう。" },
+      { q: "672年の壬申の乱のあと、翌年に即位し天皇に権力を集めたのは？", a: "天武天皇", r: "てんむてんのう", n: "大海人皇子が壬申の乱に勝って天武天皇になった。" },
+      { q: "694年、持統天皇が都としてつくったのは？", a: "藤原京", r: "ふじわらきょう", n: "中国の都にならってつくられた、日本で最初の本格的な都。" },
+      { q: "701年に定められ、律令国家が成立するきっかけとなったのは？", a: "大宝律令", r: "たいほうりつりょう", n: "唐の律令にならってつくられた、日本で初めての律令。" },
+      { q: "冠位十二階が定められたのは何年？", a: "603年", r: "", n: "その翌年、604年に十七条の憲法。" },
+      { q: "大化の改新が始まったのは何年？", a: "645年", r: "", n: "中大兄皇子・中臣鎌足が蘇我氏をたおした年。" },
+      { q: "大宝律令が定められたのは何年？", a: "701年", r: "", n: "これで律令国家が成立した。" },
+    ]
+  },
+  {
+    id: "goku",
+    name: "🔑 重要語句",
+    cards: [
+      { q: "6世紀の後半、渡来人と結んで権力を強めた豪族は何氏？", a: "蘇我氏", r: "そがし", n: "蘇我馬子は聖徳太子と協力して政治を行った。" },
+      { q: "推古天皇が即位する数年前に、中国を統一した王朝は？", a: "隋", r: "ずい", n: "隋のあとに唐が中国を統一する。" },
+      { q: "推古天皇の政治を助け、蘇我馬子と協力して天皇中心の国づくりをめざした人物は？", a: "聖徳太子", r: "しょうとくたいし", n: "冠位十二階・十七条の憲法・遣隋使・法隆寺がキーワード。" },
+      { q: "「和を大切にしなさい」から始まる、役人の心得を示したものは？", a: "十七条の憲法", r: "じゅうしちじょうのけんぽう", n: "聖徳太子が定めた。天皇の命令（詔）に従うことなども書かれている。" },
+      { q: "中大兄皇子と協力して大化の改新をおし進め、のちに藤原の姓をあたえられたのは？", a: "中臣鎌足", r: "なかとみのかまたり", n: "藤原氏の祖先。のちの藤原氏の繁栄につながる。" },
+      { q: "天智天皇が初めて全国を対象につくった、家族関係の記録文書は？", a: "戸籍（庚午年籍）", r: "こせき（こうごねんじゃく）", n: "人々を戸籍に登録し、国が直接管理するしくみ。" },
+      { q: "天智天皇の死後におこった、あとつぎをめぐる争いは？", a: "壬申の乱", r: "じんしんのらん", n: "大海人皇子（のちの天武天皇）が勝利した。" },
+      { q: "701年、唐の律令にならった日本で初めての律令は？", a: "大宝律令", r: "たいほうりつりょう", n: "律＝刑罰のきまり、令＝政治のきまり。" },
+      { q: "律令国家で、国の政治を担当し、太政大臣・左大臣・右大臣などからなった機関は？", a: "太政官", r: "だいじょうかん", n: "太政官の下に、中務省・民部省などの八省が置かれた。" },
+      { q: "律令国家で、地方の国ごとに置かれた国府へ、都から送られた役人は？", a: "国司", r: "こくし", n: "国（国司）─ 郡（郡司）─ 里（里長）の順。" },
+      { q: "律令国家で、九州に置かれ、外交・九州の行政・防衛を担当した役所は？", a: "大宰府", r: "だざいふ", n: "九州は大陸に近いので、外交と防衛が重要だった。" },
+      { q: "律令国家で、祭祀（まつり）の仕事を担当したのは？", a: "神祇官", r: "じんぎかん", n: "太政官とならぶ中央の機関。" },
+      { q: "八省のうち、戸籍・租税を担当したのは？", a: "民部省", r: "みんぶしょう", n: "「民」＝人々の戸籍や税をあつかう。" },
+      { q: "八省のうち、財政を担当したのは？", a: "大蔵省", r: "おおくらしょう", n: "お金の「蔵」と覚えよう。" },
+    ]
+  },
+  {
+    id: "jinbutsu",
+    name: "👤 歴史人物",
+    cards: [
+      { q: "聖徳太子が政治を助けた、おばにあたる天皇は？", a: "推古天皇", r: "すいこてんのう", n: "人物カード①の答え。" },
+      { q: "聖徳太子が建立し、のちに世界文化遺産にも認定された寺は？", a: "法隆寺", r: "ほうりゅうじ", n: "現存する世界最古の木造建築がある。" },
+      { q: "小野妹子は、聖徳太子の命令で何として隋に送られた？", a: "遣隋使", r: "けんずいし", n: "607年。" },
+      { q: "小野妹子が皇帝にわたした手紙には、隋と倭（日本）がどんな立場であることを示す言葉があった？", a: "対等", r: "たいとう", n: "「日出づる処の天子…」という手紙に、隋の皇帝はとても怒った。" },
+      { q: "中大兄皇子とよばれ、蘇我氏をたおした人物は、のちに何天皇になった？", a: "天智天皇", r: "てんじてんのう", n: "626〜671年。" },
+      { q: "皇族や豪族が支配していた土地と人民を国のものにした政策は？", a: "公地公民", r: "こうちこうみん", n: "土地（公地）と人民（公民）を国家が直接支配する。大化の改新の柱。" },
+      { q: "大海人皇子とよばれ、壬申の乱に勝利して即位した天皇は？", a: "天武天皇", r: "てんむてんのう", n: "631？〜686年。" },
+      { q: "天武天皇は、だれに権力を集中する政治をおし進めた？", a: "天皇", r: "てんのう", n: "天皇中心の国づくりが進んだ。" },
+      { q: "大海人皇子 ＝ のちの何天皇？", a: "天武天皇", r: "てんむてんのう", n: "中大兄皇子＝天智天皇、大海人皇子＝天武天皇。" },
+      { q: "中大兄皇子 ＝ のちの何天皇？", a: "天智天皇", r: "てんじてんのう", n: "「智」の字に注意。" },
+    ]
+  },
+  {
+    id: "kijutsu",
+    name: "✏️ 記述問題",
+    cards: [
+      { q: "聖徳太子が冠位十二階を定めた理由は何ですか。", a: "家がらにとらわれず、才能や功績のある人を役人に取り立てるため。", r: "", n: "「家がら」「才能（能力）」「役人に取り立てる」の3つのキーワードを入れて書こう。", long: true },
+    ]
+  },
+  {
+    id: "bunka",
+    name: "🏛️ 文化",
+    cards: [
+      { q: "聖徳太子のころ、飛鳥地方を中心に栄えた日本で最初の仏教文化は？", a: "飛鳥文化", r: "あすかぶんか", n: "代表は法隆寺・広隆寺。" },
+      { q: "飛鳥文化は、中国・朝鮮・インド・ギリシャのほか、どこの影響を受けている？", a: "西アジア", r: "にしあじあ", n: "シルクロードを通って、遠くの文化も伝わった。" },
+      { q: "飛鳥文化が栄えたころに都があった場所は、地図のア〜エのどれ？（長岡京・藤原京がのっている地図）", a: "エ", r: "", n: "飛鳥は藤原京のすぐ南。ウは平城京（奈良）、アとイは京都のほう。" },
+      { q: "聖徳太子によって建てられた、現存する世界最古の木造建築がある寺院は？", a: "法隆寺", r: "ほうりゅうじ", n: "奈良県にある。世界文化遺産。" },
+      { q: "白鳳文化でつくられたものは？\n法隆寺釈迦三尊像／薬師寺東塔／飛鳥寺釈迦如来像／広隆寺弥勒菩薩像", a: "薬師寺東塔", r: "やくしじとうとう", n: "ほかの3つは飛鳥文化。" },
+      { q: "白鳳文化は、どこの国（王朝）の影響を受けている？", a: "唐", r: "とう", n: "遣唐使によって唐の文化が伝わった。" },
+      { q: "白鳳文化の代表的な壁画（女性たちの絵）が描かれている古墳は？", a: "高松塚古墳", r: "たかまつづかこふん", n: "奈良県明日香村にある。" },
+      { q: "7世紀後半から8世紀初めの文化を何という？", a: "白鳳文化", r: "はくほうぶんか", n: "高松塚古墳壁画・興福寺仏頭などが代表。" },
+    ]
+  },
+];
+
+// ===== 状態 =====
+const STORE_KEY = "asuka_flashcards";
+let mastered = loadMastered();
+let shuffle = true;
+let reverse = false;
+let currentDeckIds = [];
+let queue = [];
+let idx = 0;
+let ngList = [];
+let okCount = 0;
+
+function loadMastered() {
+  try { return JSON.parse(localStorage.getItem(STORE_KEY)) || {}; } catch (e) { return {}; }
+}
+function saveMastered() {
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(mastered)); } catch (e) {}
+}
+function cardKey(deckId, i) { return deckId + ":" + i; }
+
+const $ = id => document.getElementById(id);
+function show(id) {
+  document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+  $(id).classList.add("active");
+  window.scrollTo(0, 0);
+}
+
+// ===== 単元選択 =====
+function renderHome() {
+  const box = $("decks");
+  box.innerHTML = "";
+  const allCount = DECKS.reduce((s, d) => s + d.cards.length, 0);
+  const allDone = DECKS.reduce((s, d) => s + d.cards.filter((_, i) => mastered[cardKey(d.id, i)]).length, 0);
+  box.appendChild(deckButton("🌟 ぜんぶ", allCount + "枚", allDone, allCount, DECKS.map(d => d.id), true));
+  DECKS.forEach(d => {
+    const done = d.cards.filter((_, i) => mastered[cardKey(d.id, i)]).length;
+    box.appendChild(deckButton(d.name, d.cards.length + "枚", done, d.cards.length, [d.id]));
+  });
+}
+function deckButton(name, info, done, total, ids, isAll) {
+  const b = document.createElement("button");
+  b.className = "deck-btn" + (isAll ? " all" : "");
+  const badge = done === total ? "✅ 全部覚えた" : `覚えた ${done}/${total}`;
+  b.innerHTML = `<div><div class="name">${name}</div><div class="info">${info}</div></div><div class="badge">${badge}</div>`;
+  b.onclick = () => start(ids);
+  return b;
+}
+
+// ===== 学習 =====
+function start(deckIds, onlyCards) {
+  currentDeckIds = deckIds;
+  queue = onlyCards || deckIds.flatMap(id => {
+    const d = DECKS.find(x => x.id === id);
+    return d.cards.map((c, i) => ({ ...c, key: cardKey(id, i), deck: d.name }));
+  });
+  if (shuffle) queue = shuffled(queue);
+  idx = 0; ngList = []; okCount = 0;
+  show("study");
+  renderCard();
+}
+function shuffled(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+function renderCard() {
+  const c = queue[idx];
+  const card = $("card");
+  card.classList.remove("flipped");
+  $("judge").classList.remove("show");
+  $("flipBtn").classList.remove("hide");
+  $("count").textContent = `${idx + 1} / ${queue.length}`;
+  $("barFill").style.width = (idx / queue.length * 100) + "%";
+  $("frontTag").textContent = c.deck;
+
+  const useReverse = reverse && !c.long;
+  // うら返しアニメ中に中身が見えないよう少し待って差しかえ
+  setTimeout(() => {
+    $("frontText").innerHTML = esc(useReverse ? c.a : c.q).replace(/\n/g, "<br>");
+    $("frontText").style.fontSize = useReverse ? "2rem" : "";
+    $("frontText").style.fontWeight = useReverse ? "bold" : "";
+    $("backText").innerHTML = esc(useReverse ? c.q : c.a).replace(/\n/g, "<br>");
+    $("backText").style.fontSize = (useReverse || c.long) ? "1.15rem" : "";
+    $("backRuby").textContent = useReverse ? "" : (c.r || "");
+    $("backNote").textContent = c.n ? "📖 " + c.n : "";
+    if (useReverse) $("backNote").textContent = "（" + c.a + (c.r ? "：" + c.r : "") + "）  📖 " + c.n;
+  }, card.classList.contains("flipped") ? 250 : 0);
+}
+function esc(s) {
+  return s.replace(/[&<>"]/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch]));
+}
+function flip() {
+  const card = $("card");
+  card.classList.toggle("flipped");
+  if (card.classList.contains("flipped")) {
+    $("judge").classList.add("show");
+    $("flipBtn").classList.add("hide");
+  }
+}
+function judge(ok) {
+  const c = queue[idx];
+  if (ok) { okCount++; mastered[c.key] = true; }
+  else { ngList.push(c); delete mastered[c.key]; }
+  saveMastered();
+  idx++;
+  if (idx >= queue.length) showResult();
+  else {
+    $("card").classList.remove("flipped");
+    setTimeout(renderCard, 250);
+  }
+}
+
+// ===== 結果 =====
+function showResult() {
+  const total = queue.length;
+  const rate = Math.round(okCount / total * 100);
+  $("resultScore").textContent = `${okCount} / ${total}`;
+  $("resultSub").textContent = `覚えた率 ${rate}%`;
+  $("resultMsg").textContent =
+    rate === 100 ? "🎉 パーフェクト！すごい！" :
+    rate >= 80 ? "👏 よくできました！あと少し！" :
+    rate >= 50 ? "💪 いい調子！「まだ」をもう一度やろう" :
+    "📚 くり返して覚えよう！";
+  const rv = $("review");
+  if (ngList.length) {
+    rv.innerHTML = "<h2>😣 まだのカード</h2>" + ngList.map(c =>
+      `<div class="review-item"><div class="rq">${esc(c.q).replace(/\n/g, "<br>")}</div><div class="ra">→ ${esc(c.a)}</div></div>`
+    ).join("");
+  } else rv.innerHTML = "";
+  $("retryNgBtn").style.display = ngList.length ? "" : "none";
+  show("result");
+}
+
+// ===== イベント =====
+$("card").onclick = flip;
+$("flipBtn").onclick = flip;
+$("okBtn").onclick = () => judge(true);
+$("ngBtn").onclick = () => judge(false);
+$("quitBtn").onclick = () => { renderHome(); show("home"); };
+$("homeBtn").onclick = () => { renderHome(); show("home"); };
+$("retryAllBtn").onclick = () => start(currentDeckIds);
+$("retryNgBtn").onclick = () => start(currentDeckIds, ngList.slice());
+$("shuffleToggle").onclick = e => { shuffle = !shuffle; e.currentTarget.classList.toggle("on", shuffle); };
+$("reverseToggle").onclick = e => { reverse = !reverse; e.currentTarget.classList.toggle("on", reverse); };
+$("resetBtn").onclick = () => {
+  if (confirm("覚えた記録をリセットしますか？")) { mastered = {}; saveMastered(); renderHome(); }
+};
+
+renderHome();
+</script>
+</body>
+</html>
