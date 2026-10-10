@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>奈良時代カード</title>
+<style>
+  :root {
+    --bg: #fdf8f0;
+    --ink: #2b2a33;
+    --muted: #7a7684;
+    --card: #ffffff;
+    --front: #3b5bdb;
+    --back: #f08c00;
+    --ok: #2f9e44;
+    --ng: #e03131;
+    --line: #e8e2d6;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  button { -webkit-appearance: none; appearance: none; outline: none; font: inherit; cursor: pointer; border: none; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Hiragino Maru Gothic ProN", "Hiragino Sans", "Yu Gothic", sans-serif;
+    padding: max(20px, env(safe-area-inset-top)) 16px max(40px, env(safe-area-inset-bottom));
+    min-height: 100vh;
+  }
+  .wrap { max-width: 640px; margin: 0 auto; }
+  h1 { font-size: 1.5rem; margin: 0 0 4px; text-align: center; }
+  .sub { text-align: center; color: var(--muted); margin: 0 0 24px; font-size: .9rem; }
+  .screen { display: none; }
+  .screen.active { display: block; }
+
+  /* 単元選択 */
+  .deck-btn {
+    display: flex; justify-content: space-between; align-items: center;
+    width: 100%; background: var(--card); border: 2px solid var(--line);
+    border-radius: 16px; padding: 16px 18px; margin-bottom: 12px; text-align: left;
+    color: var(--ink); transition: transform .1s;
+  }
+  .deck-btn:active { transform: scale(.98); }
+  .deck-btn .name { font-weight: bold; font-size: 1.1rem; }
+  .deck-btn .info { color: var(--muted); font-size: .85rem; margin-top: 2px; }
+  .deck-btn .badge { font-size: .85rem; font-weight: bold; color: var(--ok); white-space: nowrap; margin-left: 8px; }
+  .deck-btn.all { border-color: var(--front); }
+  .opts { display: flex; gap: 10px; justify-content: center; margin: 20px 0 8px; flex-wrap: wrap; }
+  .toggle {
+    background: var(--card); border: 2px solid var(--line); border-radius: 999px;
+    padding: 8px 16px; font-size: .9rem; color: var(--ink);
+  }
+  .toggle.on { background: var(--front); border-color: var(--front); color: #fff; }
+  .nav-link { display: block; text-align: center; margin: 18px auto 0; color: var(--front); font-weight: bold; text-decoration: none; padding: 10px; }
+  .reset { display: block; margin: 24px auto 0; background: none; color: var(--muted); font-size: .85rem; text-decoration: underline; }
+
+  /* カード */
+  .top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .back-link { background: none; color: var(--muted); font-size: .95rem; padding: 6px 0; }
+  .count { font-weight: bold; color: var(--muted); }
+  .bar { height: 8px; background: var(--line); border-radius: 99px; overflow: hidden; margin-bottom: 20px; }
+  .bar > div { height: 100%; background: var(--front); width: 0; transition: width .3s; }
+
+  .scene { perspective: 1200px; }
+  .card {
+    position: relative; width: 100%; min-height: 320px;
+    transform-style: preserve-3d; transition: transform .5s; cursor: pointer;
+  }
+  .card.flipped { transform: rotateY(180deg); }
+  .face {
+    position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden;
+    border-radius: 22px; padding: 28px 24px; display: flex; flex-direction: column;
+    justify-content: center; align-items: center; text-align: center;
+    box-shadow: 0 6px 20px rgba(0,0,0,.08);
+  }
+  .face .tag {
+    position: absolute; top: 14px; left: 16px; font-size: .75rem; font-weight: bold;
+    padding: 4px 10px; border-radius: 99px;
+  }
+  .front { background: var(--card); border: 3px solid var(--front); }
+  .front .tag { background: #e7ecff; color: var(--front); }
+  .front .q { font-size: 1.25rem; line-height: 1.7; }
+  .front .hint { color: var(--muted); font-size: .85rem; margin-top: 20px; }
+  .backface { background: #fff9ef; border: 3px solid var(--back); transform: rotateY(180deg); }
+  .backface .tag { background: #fff0d6; color: #c46a00; }
+  .backface .a { font-size: 2rem; font-weight: bold; color: #c46a00; line-height: 1.4; }
+  .backface .ruby { font-size: .95rem; color: var(--muted); margin-top: 4px; }
+  .backface .goro { margin-top: 14px; background: #fff0d6; color: #a85a00; border-radius: 12px; padding: 8px 14px; font-weight: bold; font-size: 1rem; }
+  .backface .note { font-size: .95rem; line-height: 1.7; margin-top: 18px; color: var(--ink); text-align: left; }
+
+  .judge { display: flex; gap: 12px; margin-top: 20px; visibility: hidden; }
+  .judge.show { visibility: visible; }
+  .judge button { flex: 1; padding: 18px 0; border-radius: 16px; font-size: 1.1rem; font-weight: bold; color: #fff; }
+  .judge .ng { background: var(--ng); }
+  .judge .ok { background: var(--ok); }
+  .flip-btn { display: block; width: 100%; margin-top: 20px; padding: 18px 0; border-radius: 16px; background: var(--front); color: #fff; font-size: 1.1rem; font-weight: bold; }
+  .flip-btn.hide { display: none; }
+
+  /* 結果 */
+  .result-box { background: var(--card); border-radius: 22px; padding: 28px 20px; text-align: center; box-shadow: 0 6px 20px rgba(0,0,0,.06); }
+  .score { font-size: 3rem; font-weight: bold; color: var(--front); margin: 8px 0; }
+  .msg { font-size: 1.1rem; margin-bottom: 4px; }
+  .review { margin-top: 24px; }
+  .review h2 { font-size: 1.1rem; margin: 0 0 10px; }
+  .review-item { background: var(--card); border-left: 5px solid var(--ng); border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; }
+  .review-item .rq { font-size: .95rem; line-height: 1.6; }
+  .review-item .ra { font-weight: bold; color: #c46a00; margin-top: 4px; }
+  .btn-row { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; }
+  .btn { padding: 16px 0; border-radius: 16px; font-size: 1.05rem; font-weight: bold; }
+  .btn.primary { background: var(--ng); color: #fff; }
+  .btn.secondary { background: var(--front); color: #fff; }
+  .btn.plain { background: var(--card); color: var(--ink); border: 2px solid var(--line); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- 単元選択 -->
+  <section id="home" class="screen active">
+    <h1>🦌 奈良時代 フラッシュカード</h1>
+    <p class="sub">カードをタップして答えを確認しよう</p>
+    <div id="decks"></div>
+    <div class="opts">
+      <button class="toggle on" id="shuffleToggle">🔀 シャッフル</button>
+      <button class="toggle" id="reverseToggle">🔁 答え→問題</button>
+    </div>
+    <a class="nav-link" href="index.html">← 🏯 飛鳥時代のカードへ</a>
+    <button class="reset" id="resetBtn">覚えた記録をリセット</button>
+  </section>
+
+  <!-- カード画面 -->
+  <section id="study" class="screen">
+    <div class="top">
+      <button class="back-link" id="quitBtn">← もどる</button>
+      <span class="count" id="count"></span>
+    </div>
+    <div class="bar"><div id="barFill"></div></div>
+    <div class="scene">
+      <div class="card" id="card">
+        <div class="face front">
+          <span class="tag" id="frontTag"></span>
+          <div class="q" id="frontText"></div>
+          <div class="hint">タップでうら返す</div>
+        </div>
+        <div class="face backface">
+          <span class="tag">こたえ</span>
+          <div class="a" id="backText"></div>
+          <div class="ruby" id="backRuby"></div>
+          <div class="goro" id="backGoro"></div>
+          <div class="note" id="backNote"></div>
+        </div>
+      </div>
+    </div>
+    <button class="flip-btn" id="flipBtn">答えを見る</button>
+    <div class="judge" id="judge">
+      <button class="ng" id="ngBtn">😣 まだ</button>
+      <button class="ok" id="okBtn">😊 覚えた</button>
+    </div>
+  </section>
+
+  <!-- 結果 -->
+  <section id="result" class="screen">
+    <div class="result-box">
+      <div class="msg" id="resultMsg"></div>
+      <div class="score" id="resultScore"></div>
+      <div id="resultSub" style="color:var(--muted)"></div>
+    </div>
+    <div class="review" id="review"></div>
+    <div class="btn-row">
+      <button class="btn primary" id="retryNgBtn">😣「まだ」のカードだけもう一度</button>
+      <button class="btn secondary" id="retryAllBtn">🔀 全部もう一度</button>
+      <button class="btn plain" id="homeBtn">単元選択にもどる</button>
+    </div>
+  </section>
+
+</div>
+
+<script>
+// ===== カードデータ（問題集 p.24〜25「奈良時代」より） =====
+const DECKS = [
+  {
+    id: "nenpyo",
+    name: "📜 年表問題",
+    cards: [
+      { q: "630年に始まった、中国（唐）への使節は？", a: "遣唐使", r: "けんとうし", n: "遣隋使（607年）のあと、唐に送られた使い。", g: "群れさ（630）っと出発 遣唐使" },
+      { q: "和同開珎がつくられたのは何年？", a: "708年", r: "", n: "平城京をつくる財源として発行された。", g: "なれや（708）お金に和同開珎" },
+      { q: "710年、都を奈良の何へ移した？", a: "平城京", r: "へいじょうきょう", n: "唐の都・長安にならってつくられた。", g: "なんと（710）きれいな平城京" },
+      { q: "712年に完成した、最古の歴史書は？", a: "古事記", r: "こじき", n: "神話や言い伝えをもとにした歴史書。", g: "なにふ（712）しぎな神話の古事記" },
+      { q: "713年、国ごとの地理がまとめられ始めたものは？", a: "風土記", r: "ふどき", n: "国ごとの地名の由来・産物・伝説などをまとめた。", g: "な（7）い（1）さ（3）んぽで風土記づくり" },
+      { q: "717年、阿倍仲麻呂や吉備真備などが留学生として何と一緒に中国へ渡った？", a: "遣唐使", r: "けんとうし", n: "阿倍仲麻呂は唐で役人になったが、帰国できなかった。", g: "なないな（717）留学 阿倍仲麻呂" },
+      { q: "723年に出された、新たに開墾した土地の3代にわたる私有を認めた法は？", a: "三世一身法", r: "さんぜいっしんのほう", n: "3代たつと国に返すので、あまり開墾が進まなかった。", g: "なにさ（723）三代だけ 三世一身法" },
+      { q: "741年、全国に国分寺を建てる命令を出した天皇は？", a: "聖武天皇", r: "しょうむてんのう", n: "伝染病の流行や争いが続き、仏教の力で国を守ろうとした。", g: "なよい（741）国に国分寺" },
+      { q: "743年、何の不足を解決するため墾田永年私財法が出された？", a: "口分田", r: "くぶんでん", n: "人口がふえて、配る口分田が足りなくなった。", g: "なじみ（743）の土地は永久に私のもの" },
+      { q: "752年、大仏の開眼供養が行われた寺は？", a: "東大寺", r: "とうだいじ", n: "聖武天皇が建てさせた。大仏は奈良の大仏。", g: "なご（75）に（2）ぎやか大仏開眼" },
+      { q: "753年、唐から来日した僧は？", a: "鑑真", r: "がんじん", n: "何度も航海に失敗し、目が見えなくなっても来日した。", g: "なごみ（753）の鑑真来日" },
+      { q: "8世紀後半にまとめられた、最古の歌集は？", a: "万葉集", r: "まんようしゅう", n: "天皇から農民・防人まで、さまざまな人の歌が集められた。" },
+      { q: "平城京に都が移されたのは何年？", a: "710年", r: "", n: "ここから奈良時代。", g: "なんと（710）きれいな平城京" },
+      { q: "墾田永年私財法が出されたのは何年？", a: "743年", r: "", n: "三世一身法（723年）の20年後。", g: "なじみ（743）の土地は永久に私のもの" },
+    ]
+  },
+  {
+    id: "goku",
+    name: "🔑 重要語句",
+    cards: [
+      { q: "平城京の市で使われた、都を建設する財源として発行された貨幣は？", a: "和同開珎", r: "わどうかいちん", n: "「珎」の字に注意。東市・西市で使われた。" },
+      { q: "平城京が置かれた現在の府県名は？", a: "奈良県", r: "ならけん", n: "京都府とまちがえないように。" },
+      { q: "現在の高知県にあたる旧国名は？", a: "土佐", r: "とさ", n: "坂本龍馬の「土佐藩」でも出てくる。" },
+      { q: "現在の長野県にあたる旧国名は？", a: "信濃", r: "しなの", n: "信濃川（日本一長い川）の名前にも残っている。" },
+      { q: "現在の埼玉県・東京都・神奈川県の一部にあたる旧国名は？", a: "武蔵", r: "むさし", n: "甲斐＝山梨県、讃岐＝香川県、常陸＝茨城県もいっしょに覚えよう。" },
+      { q: "戸籍をもとに6歳以上の男女に口分田を割りあて、死ぬと返させた制度は？", a: "班田収授法", r: "はんでんしゅうじゅのほう", n: "口分田は6年ごとにつくる戸籍をもとに配られた。" },
+      { q: "口分田の面積に応じて、決まった量の稲を国府に納める税は？", a: "租", r: "そ", n: "租＝稲（収穫の約3％）。地方の国府に納める。" },
+      { q: "都で10日間働くか、麻の布を納める税は？", a: "庸", r: "よう", n: "庸・調は人々が自分で都まで運んだ。" },
+      { q: "地方の特産物を納める税は？", a: "調", r: "ちょう", n: "租・庸・調をセットで覚えよう。" },
+      { q: "国司のもとで、年に60日以内の労働をする労役は？", a: "雑徭", r: "ぞうよう", n: "地方での土木工事などの労働。" },
+      { q: "兵役のうち、九州北部の守りにつかされる兵士は？", a: "防人", r: "さきもり", n: "東国の人が多く送られた。防人の歌は万葉集にのっている。" },
+      { q: "庸・調などの税の荷札としても用いられた木の札は？", a: "木簡", r: "もっかん", n: "紙が貴重だったので、木の札に文字を書いた。" },
+      { q: "口分田の不足を解決するため、新たに開墾した土地の永久私有を認めた法律は？", a: "墾田永年私財法", r: "こんでんえいねんしざいほう", n: "743年。これで公地公民がくずれ、荘園が生まれた。" },
+      { q: "新たに開墾した土地の私有を3代に限って認めた法は？", a: "三世一身法", r: "さんぜいっしんのほう", n: "723年。墾田永年私財法（743年）と区別しよう。" },
+      { q: "このころ各地にできた、貴族や寺社の私有地は？", a: "荘園", r: "しょうえん", n: "墾田永年私財法のあと、貴族や寺社が開墾を進めて広がった。" },
+    ]
+  },
+  {
+    id: "jinbutsu",
+    name: "👤 歴史人物",
+    cards: [
+      { q: "聖武天皇は何の力をかりて国家を守ろうとした？", a: "仏教", r: "ぶっきょう", n: "伝染病や争いが続いたため。" },
+      { q: "聖武天皇が都に建てた東大寺にまつったものは？", a: "大仏", r: "だいぶつ", n: "752年に開眼供養が行われた。" },
+      { q: "聖武天皇が国ごとに建てさせた、国分寺ともう一つの寺は？", a: "国分尼寺", r: "こくぶんにじ", n: "国分寺は男の僧、国分尼寺は尼（女の僧）の寺。" },
+      { q: "聖武天皇のころの年号は？", a: "天平", r: "てんぴょう", n: "このころの文化を「天平文化」という。" },
+      { q: "民衆のあいだに仏教を布教し、ため池や橋を築いた僧は？", a: "行基", r: "ぎょうき", n: "その活動が聖武天皇に認められ、大仏づくりに協力した。" },
+      { q: "行基が造立に協力したものは？", a: "東大寺の大仏", r: "とうだいじのだいぶつ", n: "金銅でつくられた大仏。" },
+      { q: "鑑真はどこの国の僧？", a: "唐", r: "とう", n: "日本の朝廷の求めに応じて来日した。" },
+      { q: "鑑真が都に建てた寺は？", a: "唐招提寺", r: "とうしょうだいじ", n: "奈良にある。鑑真の像がある。" },
+      { q: "遣唐使にしたがって唐へ行き、唐で役人になったが帰国できなかった留学生は？", a: "阿倍仲麻呂", r: "あべのなかまろ", n: "「天の原 ふりさけ見れば…」の歌で有名。" },
+      { q: "阿倍仲麻呂は何にしたがって唐へ行った？", a: "遣唐使", r: "けんとうし", n: "717年の遣唐使で、吉備真備らといっしょに渡った。" },
+    ]
+  },
+  {
+    id: "kijutsu",
+    name: "✏️ 記述問題",
+    cards: [
+      { q: "743年に出された墾田永年私財法によって、土地制度はどのようになりましたか。", a: "開墾した土地の永久私有が認められたため、公地公民の原則がくずれ、貴族や寺社の私有地（荘園）が増えた。", r: "", n: "「永久に私有」「公地公民がくずれた」「荘園（私有地）が増えた」をキーワードに書こう。", long: true },
+    ]
+  },
+  {
+    id: "bunka",
+    name: "🏛️ 文化",
+    cards: [
+      { q: "聖武天皇のころに栄えた、中国・西アジア・インドの影響を受けた仏教文化は？", a: "天平文化", r: "てんぴょうぶんか", n: "遣唐使によって唐の文化が伝わり、国際色ゆたか。" },
+      { q: "聖武天皇の身のまわりの品などを納めた倉は？", a: "正倉院", r: "しょうそういん", n: "東大寺にある。校倉造でつくられている。" },
+      { q: "神話などをもとに、「古事記」に続いて編さんされた歴史書は？", a: "日本書紀", r: "にほんしょき", n: "720年完成。天皇が日本を治める由来を明らかにするため。" },
+      { q: "「万葉集」に農民のようすを「貧窮問答歌」でよんだ歌人は？", a: "山上憶良", r: "やまのうえのおくら", n: "まずしい農民のくらしをよんだ。" },
+      { q: "奈良時代の国家的な編さん事業でつくられた3つの書物は？", a: "古事記・日本書紀・風土記", r: "", n: "古事記と日本書紀は歴史書、風土記は国ごとの地理書。" },
+      { q: "最古の歌集で、天皇から農民・防人までの歌が集められたものは？", a: "万葉集", r: "まんようしゅう", n: "8世紀後半にまとめられた。" },
+    ]
+  },
+];
+
+// ===== 状態 =====
+const STORE_KEY = "nara_flashcards";
+let mastered = loadMastered();
+let shuffle = true;
+let reverse = false;
+let currentDeckIds = [];
+let queue = [];
+let idx = 0;
+let ngList = [];
+let okCount = 0;
+
+function loadMastered() {
+  try { return JSON.parse(localStorage.getItem(STORE_KEY)) || {}; } catch (e) { return {}; }
+}
+function saveMastered() {
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(mastered)); } catch (e) {}
+}
+function cardKey(deckId, i) { return deckId + ":" + i; }
+
+const $ = id => document.getElementById(id);
+function show(id) {
+  document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+  $(id).classList.add("active");
+  window.scrollTo(0, 0);
+}
+
+// ===== 単元選択 =====
+function renderHome() {
+  const box = $("decks");
+  box.innerHTML = "";
+  const allCount = DECKS.reduce((s, d) => s + d.cards.length, 0);
+  const allDone = DECKS.reduce((s, d) => s + d.cards.filter((_, i) => mastered[cardKey(d.id, i)]).length, 0);
+  box.appendChild(deckButton("🌟 ぜんぶ", allCount + "枚", allDone, allCount, DECKS.map(d => d.id), true));
+  DECKS.forEach(d => {
+    const done = d.cards.filter((_, i) => mastered[cardKey(d.id, i)]).length;
+    box.appendChild(deckButton(d.name, d.cards.length + "枚", done, d.cards.length, [d.id]));
+  });
+}
+function deckButton(name, info, done, total, ids, isAll) {
+  const b = document.createElement("button");
+  b.className = "deck-btn" + (isAll ? " all" : "");
+  const badge = done === total ? "✅ 全部覚えた" : `覚えた ${done}/${total}`;
+  b.innerHTML = `<div><div class="name">${name}</div><div class="info">${info}</div></div><div class="badge">${badge}</div>`;
+  b.onclick = () => start(ids);
+  return b;
+}
+
+// ===== 学習 =====
+function start(deckIds, onlyCards) {
+  currentDeckIds = deckIds;
+  queue = onlyCards || deckIds.flatMap(id => {
+    const d = DECKS.find(x => x.id === id);
+    return d.cards.map((c, i) => ({ ...c, key: cardKey(id, i), deck: d.name }));
+  });
+  if (shuffle) queue = shuffled(queue);
+  idx = 0; ngList = []; okCount = 0;
+  show("study");
+  renderCard();
+}
+function shuffled(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+function renderCard() {
+  const c = queue[idx];
+  const card = $("card");
+  card.classList.remove("flipped");
+  $("judge").classList.remove("show");
+  $("flipBtn").classList.remove("hide");
+  $("count").textContent = `${idx + 1} / ${queue.length}`;
+  $("barFill").style.width = (idx / queue.length * 100) + "%";
+  $("frontTag").textContent = c.deck;
+
+  const useReverse = reverse && !c.long;
+  // うら返しアニメ中に中身が見えないよう少し待って差しかえ
+  setTimeout(() => {
+    $("frontText").innerHTML = esc(useReverse ? c.a : c.q).replace(/\n/g, "<br>");
+    $("frontText").style.fontSize = useReverse ? "2rem" : "";
+    $("frontText").style.fontWeight = useReverse ? "bold" : "";
+    $("backText").innerHTML = esc(useReverse ? c.q : c.a).replace(/\n/g, "<br>");
+    $("backText").style.fontSize = (useReverse || c.long) ? "1.15rem" : "";
+    $("backRuby").textContent = useReverse ? "" : (c.r || "");
+    $("backNote").textContent = c.n ? "📖 " + c.n : "";
+    $("backGoro").textContent = c.g ? "🎵 語呂：" + c.g : "";
+    $("backGoro").style.display = c.g ? "" : "none";
+    if (useReverse) $("backNote").textContent = "（" + c.a + (c.r ? "：" + c.r : "") + "）  📖 " + c.n;
+  }, card.classList.contains("flipped") ? 250 : 0);
+}
+function esc(s) {
+  return s.replace(/[&<>"]/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch]));
+}
+function flip() {
+  const card = $("card");
+  card.classList.toggle("flipped");
+  if (card.classList.contains("flipped")) {
+    $("judge").classList.add("show");
+    $("flipBtn").classList.add("hide");
+  }
+}
+function judge(ok) {
+  const c = queue[idx];
+  if (ok) { okCount++; mastered[c.key] = true; }
+  else { ngList.push(c); delete mastered[c.key]; }
+  saveMastered();
+  idx++;
+  if (idx >= queue.length) showResult();
+  else {
+    $("card").classList.remove("flipped");
+    setTimeout(renderCard, 250);
+  }
+}
+
+// ===== 結果 =====
+function showResult() {
+  const total = queue.length;
+  const rate = Math.round(okCount / total * 100);
+  $("resultScore").textContent = `${okCount} / ${total}`;
+  $("resultSub").textContent = `覚えた率 ${rate}%`;
+  $("resultMsg").textContent =
+    rate === 100 ? "🎉 パーフェクト！すごい！" :
+    rate >= 80 ? "👏 よくできました！あと少し！" :
+    rate >= 50 ? "💪 いい調子！「まだ」をもう一度やろう" :
+    "📚 くり返して覚えよう！";
+  const rv = $("review");
+  if (ngList.length) {
+    rv.innerHTML = "<h2>😣 まだのカード</h2>" + ngList.map(c =>
+      `<div class="review-item"><div class="rq">${esc(c.q).replace(/\n/g, "<br>")}</div><div class="ra">→ ${esc(c.a)}</div>${c.g ? `<div style="color:#a85a00;font-size:.9rem;margin-top:2px">🎵 ${esc(c.g)}</div>` : ""}</div>`
+    ).join("");
+  } else rv.innerHTML = "";
+  $("retryNgBtn").style.display = ngList.length ? "" : "none";
+  show("result");
+}
+
+// ===== イベント =====
+$("card").onclick = flip;
+$("flipBtn").onclick = flip;
+$("okBtn").onclick = () => judge(true);
+$("ngBtn").onclick = () => judge(false);
+$("quitBtn").onclick = () => { renderHome(); show("home"); };
+$("homeBtn").onclick = () => { renderHome(); show("home"); };
+$("retryAllBtn").onclick = () => start(currentDeckIds);
+$("retryNgBtn").onclick = () => start(currentDeckIds, ngList.slice());
+$("shuffleToggle").onclick = e => { shuffle = !shuffle; e.currentTarget.classList.toggle("on", shuffle); };
+$("reverseToggle").onclick = e => { reverse = !reverse; e.currentTarget.classList.toggle("on", reverse); };
+$("resetBtn").onclick = () => {
+  if (confirm("覚えた記録をリセットしますか？")) { mastered = {}; saveMastered(); renderHome(); }
+};
+
+renderHome();
+</script>
+</body>
+</html>
