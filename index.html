@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<title>飛鳥時代カード</title>
+<title>社会フラッシュカード</title>
 <style>
   :root {
     --bg: #fdf8f0;
@@ -51,7 +51,6 @@
     padding: 8px 16px; font-size: .9rem; color: var(--ink);
   }
   .toggle.on { background: var(--front); border-color: var(--front); color: #fff; }
-  .nav-link { display: block; text-align: center; margin: 18px auto 0; color: var(--front); font-weight: bold; text-decoration: none; padding: 10px; }
   .reset { display: block; margin: 24px auto 0; background: none; color: var(--muted); font-size: .85rem; text-decoration: underline; }
 
   /* カード */
@@ -115,16 +114,23 @@
 <body>
 <div class="wrap">
 
+  <!-- 時代選択 -->
+  <section id="eraScreen" class="screen active">
+    <h1>📚 社会 フラッシュカード</h1>
+    <p class="sub">勉強する時代をえらぼう</p>
+    <div id="eras"></div>
+  </section>
+
   <!-- 単元選択 -->
-  <section id="home" class="screen active">
-    <h1>🏯 飛鳥時代 フラッシュカード</h1>
+  <section id="home" class="screen">
+    <button class="back-link" id="eraBackBtn">← 時代をえらぶ</button>
+    <h1 id="eraTitle"></h1>
     <p class="sub">カードをタップして答えを確認しよう</p>
     <div id="decks"></div>
     <div class="opts">
       <button class="toggle on" id="shuffleToggle">🔀 シャッフル</button>
       <button class="toggle" id="reverseToggle">🔁 答え→問題</button>
     </div>
-    <a class="nav-link" href="nara.html">🦌 奈良時代のカードへ →</a>
     <button class="reset" id="resetBtn">覚えた記録をリセット</button>
   </section>
 
@@ -176,8 +182,14 @@
 </div>
 
 <script>
-// ===== カードデータ（問題集 p.18〜19「飛鳥時代」より） =====
-const DECKS = [
+// ===== カードデータ =====
+// 新しい時代は ERAS に1ブロック追加するだけでOK
+const ERAS = [
+  {
+    id: "asuka",
+    name: "🏯 飛鳥時代",
+    source: "問題集 p.18〜19",
+    decks: [
   {
     id: "nenpyo",
     name: "📜 年表問題",
@@ -255,10 +267,97 @@ const DECKS = [
       { q: "7世紀後半から8世紀初めの文化を何という？", a: "白鳳文化", r: "はくほうぶんか", n: "高松塚古墳壁画・興福寺仏頭などが代表。" },
     ]
   },
+]
+  },
+  {
+    id: "nara",
+    name: "🦌 奈良時代",
+    source: "問題集 p.24〜25",
+    decks: [
+  {
+    id: "nenpyo",
+    name: "📜 年表問題",
+    cards: [
+      { q: "630年に始まった、中国（唐）への使節は？", a: "遣唐使", r: "けんとうし", n: "遣隋使（607年）のあと、唐に送られた使い。", g: "群れさ（630）っと出発 遣唐使" },
+      { q: "和同開珎がつくられたのは何年？", a: "708年", r: "", n: "平城京をつくる財源として発行された。", g: "なれや（708）お金に和同開珎" },
+      { q: "710年、都を奈良の何へ移した？", a: "平城京", r: "へいじょうきょう", n: "唐の都・長安にならってつくられた。", g: "なんと（710）きれいな平城京" },
+      { q: "712年に完成した、最古の歴史書は？", a: "古事記", r: "こじき", n: "神話や言い伝えをもとにした歴史書。", g: "なにふ（712）しぎな神話の古事記" },
+      { q: "713年、国ごとの地理がまとめられ始めたものは？", a: "風土記", r: "ふどき", n: "国ごとの地名の由来・産物・伝説などをまとめた。", g: "な（7）い（1）さ（3）んぽで風土記づくり" },
+      { q: "717年、阿倍仲麻呂や吉備真備などが留学生として何と一緒に中国へ渡った？", a: "遣唐使", r: "けんとうし", n: "阿倍仲麻呂は唐で役人になったが、帰国できなかった。", g: "なないな（717）留学 阿倍仲麻呂" },
+      { q: "723年に出された、新たに開墾した土地の3代にわたる私有を認めた法は？", a: "三世一身法", r: "さんぜいっしんのほう", n: "3代たつと国に返すので、あまり開墾が進まなかった。", g: "なにさ（723）三代だけ 三世一身法" },
+      { q: "741年、全国に国分寺を建てる命令を出した天皇は？", a: "聖武天皇", r: "しょうむてんのう", n: "伝染病の流行や争いが続き、仏教の力で国を守ろうとした。", g: "なよい（741）国に国分寺" },
+      { q: "743年、何の不足を解決するため墾田永年私財法が出された？", a: "口分田", r: "くぶんでん", n: "人口がふえて、配る口分田が足りなくなった。", g: "なじみ（743）の土地は永久に私のもの" },
+      { q: "752年、大仏の開眼供養が行われた寺は？", a: "東大寺", r: "とうだいじ", n: "聖武天皇が建てさせた。大仏は奈良の大仏。", g: "なご（75）に（2）ぎやか大仏開眼" },
+      { q: "753年、唐から来日した僧は？", a: "鑑真", r: "がんじん", n: "何度も航海に失敗し、目が見えなくなっても来日した。", g: "なごみ（753）の鑑真来日" },
+      { q: "8世紀後半にまとめられた、最古の歌集は？", a: "万葉集", r: "まんようしゅう", n: "天皇から農民・防人まで、さまざまな人の歌が集められた。" },
+      { q: "平城京に都が移されたのは何年？", a: "710年", r: "", n: "ここから奈良時代。", g: "なんと（710）きれいな平城京" },
+      { q: "墾田永年私財法が出されたのは何年？", a: "743年", r: "", n: "三世一身法（723年）の20年後。", g: "なじみ（743）の土地は永久に私のもの" },
+    ]
+  },
+  {
+    id: "goku",
+    name: "🔑 重要語句",
+    cards: [
+      { q: "平城京の市で使われた、都を建設する財源として発行された貨幣は？", a: "和同開珎", r: "わどうかいちん", n: "「珎」の字に注意。東市・西市で使われた。" },
+      { q: "平城京が置かれた現在の府県名は？", a: "奈良県", r: "ならけん", n: "京都府とまちがえないように。" },
+      { q: "現在の高知県にあたる旧国名は？", a: "土佐", r: "とさ", n: "坂本龍馬の「土佐藩」でも出てくる。" },
+      { q: "現在の長野県にあたる旧国名は？", a: "信濃", r: "しなの", n: "信濃川（日本一長い川）の名前にも残っている。" },
+      { q: "現在の埼玉県・東京都・神奈川県の一部にあたる旧国名は？", a: "武蔵", r: "むさし", n: "甲斐＝山梨県、讃岐＝香川県、常陸＝茨城県もいっしょに覚えよう。" },
+      { q: "戸籍をもとに6歳以上の男女に口分田を割りあて、死ぬと返させた制度は？", a: "班田収授法", r: "はんでんしゅうじゅのほう", n: "口分田は6年ごとにつくる戸籍をもとに配られた。" },
+      { q: "口分田の面積に応じて、決まった量の稲を国府に納める税は？", a: "租", r: "そ", n: "租＝稲（収穫の約3％）。地方の国府に納める。" },
+      { q: "都で10日間働くか、麻の布を納める税は？", a: "庸", r: "よう", n: "庸・調は人々が自分で都まで運んだ。" },
+      { q: "地方の特産物を納める税は？", a: "調", r: "ちょう", n: "租・庸・調をセットで覚えよう。" },
+      { q: "国司のもとで、年に60日以内の労働をする労役は？", a: "雑徭", r: "ぞうよう", n: "地方での土木工事などの労働。" },
+      { q: "兵役のうち、九州北部の守りにつかされる兵士は？", a: "防人", r: "さきもり", n: "東国の人が多く送られた。防人の歌は万葉集にのっている。" },
+      { q: "庸・調などの税の荷札としても用いられた木の札は？", a: "木簡", r: "もっかん", n: "紙が貴重だったので、木の札に文字を書いた。" },
+      { q: "口分田の不足を解決するため、新たに開墾した土地の永久私有を認めた法律は？", a: "墾田永年私財法", r: "こんでんえいねんしざいほう", n: "743年。これで公地公民がくずれ、荘園が生まれた。" },
+      { q: "新たに開墾した土地の私有を3代に限って認めた法は？", a: "三世一身法", r: "さんぜいっしんのほう", n: "723年。墾田永年私財法（743年）と区別しよう。" },
+      { q: "このころ各地にできた、貴族や寺社の私有地は？", a: "荘園", r: "しょうえん", n: "墾田永年私財法のあと、貴族や寺社が開墾を進めて広がった。" },
+    ]
+  },
+  {
+    id: "jinbutsu",
+    name: "👤 歴史人物",
+    cards: [
+      { q: "聖武天皇は何の力をかりて国家を守ろうとした？", a: "仏教", r: "ぶっきょう", n: "伝染病や争いが続いたため。" },
+      { q: "聖武天皇が都に建てた東大寺にまつったものは？", a: "大仏", r: "だいぶつ", n: "752年に開眼供養が行われた。" },
+      { q: "聖武天皇が国ごとに建てさせた、国分寺ともう一つの寺は？", a: "国分尼寺", r: "こくぶんにじ", n: "国分寺は男の僧、国分尼寺は尼（女の僧）の寺。" },
+      { q: "聖武天皇のころの年号は？", a: "天平", r: "てんぴょう", n: "このころの文化を「天平文化」という。" },
+      { q: "民衆のあいだに仏教を布教し、ため池や橋を築いた僧は？", a: "行基", r: "ぎょうき", n: "その活動が聖武天皇に認められ、大仏づくりに協力した。" },
+      { q: "行基が造立に協力したものは？", a: "東大寺の大仏", r: "とうだいじのだいぶつ", n: "金銅でつくられた大仏。" },
+      { q: "鑑真はどこの国の僧？", a: "唐", r: "とう", n: "日本の朝廷の求めに応じて来日した。" },
+      { q: "鑑真が都に建てた寺は？", a: "唐招提寺", r: "とうしょうだいじ", n: "奈良にある。鑑真の像がある。" },
+      { q: "遣唐使にしたがって唐へ行き、唐で役人になったが帰国できなかった留学生は？", a: "阿倍仲麻呂", r: "あべのなかまろ", n: "「天の原 ふりさけ見れば…」の歌で有名。" },
+      { q: "阿倍仲麻呂は何にしたがって唐へ行った？", a: "遣唐使", r: "けんとうし", n: "717年の遣唐使で、吉備真備らといっしょに渡った。" },
+    ]
+  },
+  {
+    id: "kijutsu",
+    name: "✏️ 記述問題",
+    cards: [
+      { q: "743年に出された墾田永年私財法によって、土地制度はどのようになりましたか。", a: "開墾した土地の永久私有が認められたため、公地公民の原則がくずれ、貴族や寺社の私有地（荘園）が増えた。", r: "", n: "「永久に私有」「公地公民がくずれた」「荘園（私有地）が増えた」をキーワードに書こう。", long: true },
+    ]
+  },
+  {
+    id: "bunka",
+    name: "🏛️ 文化",
+    cards: [
+      { q: "聖武天皇のころに栄えた、中国・西アジア・インドの影響を受けた仏教文化は？", a: "天平文化", r: "てんぴょうぶんか", n: "遣唐使によって唐の文化が伝わり、国際色ゆたか。" },
+      { q: "聖武天皇の身のまわりの品などを納めた倉は？", a: "正倉院", r: "しょうそういん", n: "東大寺にある。校倉造でつくられている。" },
+      { q: "神話などをもとに、「古事記」に続いて編さんされた歴史書は？", a: "日本書紀", r: "にほんしょき", n: "720年完成。天皇が日本を治める由来を明らかにするため。" },
+      { q: "「万葉集」に農民のようすを「貧窮問答歌」でよんだ歌人は？", a: "山上憶良", r: "やまのうえのおくら", n: "まずしい農民のくらしをよんだ。" },
+      { q: "奈良時代の国家的な編さん事業でつくられた3つの書物は？", a: "古事記・日本書紀・風土記", r: "", n: "古事記と日本書紀は歴史書、風土記は国ごとの地理書。" },
+      { q: "最古の歌集で、天皇から農民・防人までの歌が集められたものは？", a: "万葉集", r: "まんようしゅう", n: "8世紀後半にまとめられた。" },
+    ]
+  },
+]
+  },
 ];
 
 // ===== 状態 =====
-const STORE_KEY = "asuka_flashcards";
+const STORE_KEY = "shakai_flashcards";
+let era = null;
+let DECKS = [];
 let mastered = loadMastered();
 let shuffle = true;
 let reverse = false;
@@ -269,18 +368,51 @@ let ngList = [];
 let okCount = 0;
 
 function loadMastered() {
-  try { return JSON.parse(localStorage.getItem(STORE_KEY)) || {}; } catch (e) { return {}; }
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORE_KEY));
+    if (saved) return saved;
+    // 以前の時代別ファイルの記録を引き継ぐ
+    const merged = {};
+    [["asuka_flashcards", "asuka"], ["nara_flashcards", "nara"]].forEach(([oldKey, eraId]) => {
+      const old = JSON.parse(localStorage.getItem(oldKey) || "{}");
+      Object.keys(old).forEach(k => { merged[eraId + ":" + k] = old[k]; });
+    });
+    return merged;
+  } catch (e) { return {}; }
 }
 function saveMastered() {
   try { localStorage.setItem(STORE_KEY, JSON.stringify(mastered)); } catch (e) {}
 }
-function cardKey(deckId, i) { return deckId + ":" + i; }
+function cardKey(deckId, i, eraId) { return (eraId || era.id) + ":" + deckId + ":" + i; }
 
 const $ = id => document.getElementById(id);
 function show(id) {
   document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
   $(id).classList.add("active");
   window.scrollTo(0, 0);
+}
+
+// ===== 時代選択 =====
+function renderEras() {
+  const box = $("eras");
+  box.innerHTML = "";
+  ERAS.forEach(e => {
+    const total = e.decks.reduce((s, d) => s + d.cards.length, 0);
+    const done = e.decks.reduce((s, d) => s + d.cards.filter((_, i) => mastered[cardKey(d.id, i, e.id)]).length, 0);
+    const b = document.createElement("button");
+    b.className = "deck-btn";
+    const badge = done === total ? "✅ 全部覚えた" : `覚えた ${done}/${total}`;
+    b.innerHTML = `<div><div class="name">${e.name}</div><div class="info">${total}枚・${e.source}</div></div><div class="badge">${badge}</div>`;
+    b.onclick = () => selectEra(e);
+    box.appendChild(b);
+  });
+}
+function selectEra(e) {
+  era = e;
+  DECKS = e.decks;
+  $("eraTitle").textContent = e.name + " フラッシュカード";
+  renderHome();
+  show("home");
 }
 
 // ===== 単元選択 =====
@@ -405,11 +537,15 @@ $("retryAllBtn").onclick = () => start(currentDeckIds);
 $("retryNgBtn").onclick = () => start(currentDeckIds, ngList.slice());
 $("shuffleToggle").onclick = e => { shuffle = !shuffle; e.currentTarget.classList.toggle("on", shuffle); };
 $("reverseToggle").onclick = e => { reverse = !reverse; e.currentTarget.classList.toggle("on", reverse); };
+$("eraBackBtn").onclick = () => { renderEras(); show("eraScreen"); };
 $("resetBtn").onclick = () => {
-  if (confirm("覚えた記録をリセットしますか？")) { mastered = {}; saveMastered(); renderHome(); }
+  if (!confirm(era.name + "の覚えた記録をリセットしますか？")) return;
+  Object.keys(mastered).forEach(k => { if (k.startsWith(era.id + ":")) delete mastered[k]; });
+  saveMastered();
+  renderHome();
 };
 
-renderHome();
+renderEras();
 </script>
 </body>
 </html>
